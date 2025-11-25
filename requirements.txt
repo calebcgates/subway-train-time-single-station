@@ -1,0 +1,4 @@
+gtfs-realtime-bindings==1.0.0
+protobuf>=6.0.0
+
+
