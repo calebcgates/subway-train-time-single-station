@@ -1,0 +1,36 @@
+# WiFi Configuration Template for Raspberry Pi
+# Save this as wpa_supplicant.conf on the boot partition of your SD card
+
+country=US
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+
+# Your current WiFi (for setup and testing)
+# Higher priority = preferred network
+network={
+    ssid="YourCurrentWiFiName"
+    psk="YourCurrentWiFiPassword"
+    priority=10
+}
+
+# Your other house WiFi (where display will live)
+network={
+    ssid="YourOtherHouseWiFiName"
+    psk="YourOtherHouseWiFiPassword"
+    priority=5
+}
+
+# Optional: Add more networks as needed
+# network={
+#     ssid="PhoneHotspot"
+#     psk="HotspotPassword"
+#     priority=1
+# }
+
+# Notes:
+# - Replace "YourWiFiName" with actual SSID (keep quotes)
+# - Replace "YourWiFiPassword" with actual password (keep quotes)
+# - Higher priority number = Pi will prefer that network
+# - For open networks (no password), use: key_mgmt=NONE instead of psk
+# - For hidden networks, add: scan_ssid=1
+
