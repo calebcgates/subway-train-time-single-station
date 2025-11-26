@@ -1,159 +1,194 @@
-# NYC Subway G Train Tracker
+# NYC Subway Train Display
 
-Real-time G train arrivals for Greenpoint Avenue station - available as both a command-line tool and a Raspberry Pi LCD display.
+A Raspberry Pi project that displays real-time NYC subway arrival times on a 16x2 LCD screen.
 
-## 🚇 Features
+## Project Origin
 
-- **Real-time MTA data** - Live train arrivals from official MTA GTFS feed
-- **CLI tool** - Simple command-line display of all upcoming trains
-- **LCD display** - Raspberry Pi Zero W with 16x2 LCD for persistent display
-- **Auto-updating** - Refreshes every 30 seconds
-- **Dual direction** - Shows both northbound (Queens) and southbound (Brooklyn) trains
+I created this project so that my girlfriend could see when the train near her apartment would arrive. It's a 6-minute walk to the station, and the train only comes every 12 minutes with inconsistent spacing.
 
-## 📋 What's Included
+I found that the MTA has a public set of APIs that don't require authentication. It's not a JSON API, so you do need a Python library to decode the responses.
 
-### For Testing/Development (Mac/PC)
-- `read_g_train.py` - Command-line tool showing all upcoming trains
+My goal was to run this on a Raspberry Pi because I have a bunch of them. I knew I could set it up at my home and then pre-configure the WiFi so that it would connect automatically when I plugged it in at the house I was bringing it to.
 
-### For Raspberry Pi LCD Display
-- `display_train.py` - LCD display script with auto-alternating screens
-- `RASPBERRY_PI_SETUP.md` - Complete setup guide for Pi Zero W
-- `QUICK_START.md` - Quick reference for maintenance
-- `scratchpad.md` - Project planning and requirements
+## Hardware Setup
 
-## 🚀 Quick Start
+### Components Needed
+- Raspberry Pi (any model with I2C support)
+- 16x2 I2C LCD display
+- Micro SD card (8GB or larger)
+- Power supply
+- Jumper wires
 
-### Option 1: Command-Line Tool (Mac/PC)
+### Wiring
+Connect the I2C LCD display to your Raspberry Pi:
+- VCC → 5V
+- GND → Ground  
+- SDA → GPIO 2 (SDA)
+- SCL → GPIO 3 (SCL)
+
+**LCD Contrast Tip:** There's a small potentiometer on the back of the LCD that you can twist to adjust the contrast. I used an exacto knife to find the perfect setting.
+
+## Software Installation
+
+### Initial Raspberry Pi Setup
+
+I did the initial setup on an old Pi and was then forced to upgrade from the 2017 OS to the 2025 OS because pip wouldn't install any of my dependencies.
+
+Hours later—literally the worst part of projects like this—I had an SD card formatted to ExFAT and then copied the 1.1GB ISO onto it.
+
+**Note:** I tried to use the Raspberry Pi Imager, but it kept rejecting my SD card midway. It was either the installer or my SD-to-microSD adapter. I got a new adapter and just downloaded the entire image first from their website. That made it much faster to copy onto the SD card from the command line—though it did take a while to finalize.
+
+I then had to boot the Pi and go through the startup (thank god I have a micro HDMI to HDMI converter, a dongle for micro USB to USB 2.0 with a keyboard and mouse, and an extra monitor on my desk).
+
+I did the manual setup and chose the localization, then turned on SSH mode.
+
+### Installing the Project
+
+Once I had the OS and SSH turned on, I connected via SSH from my Mac and pushed the files I had worked on locally to the Pi, moved them to the right folder, created a venv, activated it, installed requirements, and ran the script.
 
 ```bash
-# Activate virtual environment
+# Clone or copy this repository to your Raspberry Pi
+cd ~
+mkdir nyc-subway
+cd nyc-subway
+
+# Create and activate virtual environment
+python3 -m venv venv
 source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the script
-python read_g_train.py
+# Run the display
+python3 display_train.py
 ```
 
-**Output:**
-```
-Trains arriving at Greenpoint Avenue (G22):
+### Enable I2C on Raspberry Pi
 
-Northbound (to Queens)
-  Arrives: 20:35:23 (4 minutes)
-
-Southbound (to Brooklyn)
-  Arrives: 20:31:00 (0 minutes)
-
-Northbound (to Queens)
-  Arrives: 20:51:23 (20 minutes)
-```
-
-### Option 2: Raspberry Pi LCD Display
-
-**See full guide:** [`RASPBERRY_PI_SETUP.md`](RASPBERRY_PI_SETUP.md)
-
-**Display format (alternates every 4 seconds):**
-
-Northbound screen:
-```
-QUEENS       4 M
-QUEENS      11 M
-```
-
-Southbound screen:
-```
-BROOKLYN     1 M
-BROOKLYN    13 M
-```
-
-**Hardware needed:**
-- Raspberry Pi Zero W
-- 16x2 I2C LCD (PCF8574)
-- 4 jumper wires
-- 5V power supply
-
-## 📖 Documentation
-
-- **[RASPBERRY_PI_SETUP.md](RASPBERRY_PI_SETUP.md)** - Complete setup guide from SD card to running display
-- **[QUICK_START.md](QUICK_START.md)** - Quick reference for common tasks
-- **[scratchpad.md](scratchpad.md)** - Project requirements and planning
-
-## 🔧 Configuration
-
-### Display Settings (display_train.py)
-
-```python
-REFRESH_INTERVAL = 30  # Seconds between MTA data fetches
-DISPLAY_INTERVAL = 4   # Seconds to show each direction
-LCD_ADDRESS = 0x27     # I2C address (try 0x3f if issues)
-```
-
-## 📡 About the Data
-
-- **Station**: Greenpoint Avenue (G22)
-- **Stop IDs**: 
-  - G22N - Northbound (to Queens)
-  - G22S - Southbound (to Brooklyn)
-- **Line**: G Train
-- **Data Source**: [MTA Real-time Data Feeds](https://api-endpoint.mta.info/)
-- **API Key**: Not required (free public access)
-- **Update Frequency**: MTA updates every ~30 seconds
-
-## 🐛 Troubleshooting
-
-### Command-line tool issues
 ```bash
-# Make sure dependencies are installed
-pip install -r requirements.txt
+sudo raspi-config
+# Navigate to: Interface Options → I2C → Enable
 
-# Check internet connection
-ping api-endpoint.mta.info
-```
-
-### Raspberry Pi issues
-
-See [QUICK_START.md](QUICK_START.md) troubleshooting section or [RASPBERRY_PI_SETUP.md](RASPBERRY_PI_SETUP.md) for detailed help.
-
-Common fixes:
-```bash
-# Check LCD connection
+# Verify I2C device is detected
 sudo i2cdetect -y 1
-
-# View service logs
-sudo journalctl -u gtrain-display.service -f
-
-# Restart display
-sudo systemctl restart gtrain-display.service
 ```
 
-## 📦 Requirements
+### WiFi Configuration
 
-### Python Dependencies
-- `gtfs-realtime-bindings` - Parse MTA GTFS data
-- `protobuf` - Protocol buffer support
-- `RPLCD` - Raspberry Pi LCD library (Pi only)
-
-### System Requirements
-- Python 3.7+
-- Internet connection
-- For Pi: I2C enabled, GPIO access
-
-## 🎯 Project Structure
+I also had to add the WiFi for the other house. Edit `/etc/wpa_supplicant/wpa_supplicant.conf` to add your network:
 
 ```
-nyc-subway/
-├── read_g_train.py          # CLI tool (all trains)
-├── display_train.py         # LCD display script (top 2+2)
-├── requirements.txt         # Python dependencies
-├── README.md               # This file
-├── RASPBERRY_PI_SETUP.md   # Complete Pi setup guide
-├── QUICK_START.md          # Quick reference
-└── scratchpad.md           # Planning notes
+network={
+    ssid="Your_Network_Name"
+    psk="Your_Password"
+}
 ```
 
-## 🙏 Credits
+### Run on Startup
 
-- MTA for providing free real-time transit data
-- GTFS Realtime for the data format specification
+To set the code to run on startup, create a systemd service:
+
+```bash
+sudo nano /etc/systemd/system/gtrain.service
+```
+
+Add the following content:
+
+```ini
+[Unit]
+Description=G Train Display
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/nyc-subway
+ExecStart=/home/pi/nyc-subway/venv/bin/python3 /home/pi/nyc-subway/display_train.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start the service:
+
+```bash
+sudo systemctl enable gtrain.service
+sudo systemctl start gtrain.service
+
+# Check status
+sudo systemctl status gtrain.service
+```
+
+## Configuration
+
+The `.py` file was designed to pull from the subway API, format the data, and then display it on the attached 16-char by 2-char screen.
+
+### Customizing for Your Station
+
+If you choose to clone this repo for yourself, you'll have to edit the following in `display_train.py`:
+
+1. **Subway stop address** (lines 88, 98):
+   - Find your stop ID from the [MTA GTFS feeds](https://api.mta.info/)
+   - Replace `'G22N'` and `'G22S'` with your station codes
+
+2. **Direction labels** (line 129):
+   - Replace `"QUEENS"` and `"BROOKLYN"` with your line's directions
+
+3. **MTA Feed URL** (line 24):
+   - Replace with your subway line's feed URL
+   - Available feeds: https://api.mta.info/
+
+4. **Potentially some of the API parsing logic** depending on your train line names
+
+## Key Files
+
+- **`display_train.py`** - Main program that fetches train data and controls the LCD display
+- **`requirements.txt`** - Python dependencies needed for the project
+
+## How It Works
+
+The display alternates every 4 seconds between showing:
+1. Next 2 northbound trains
+2. Next 2 southbound trains
+
+The program refreshes train data from the MTA API every 30 seconds.
+
+## Troubleshooting
+
+### LCD Not Working
+- Check I2C is enabled: `sudo raspi-config`
+- Verify wiring and I2C address: `sudo i2cdetect -y 1`
+- Try alternate I2C address `0x3f` if `0x27` doesn't work (line 27 in display_train.py)
+- Adjust contrast using the potentiometer on the back of the LCD
+
+### No Train Data
+- Check WiFi connection: `ping 8.8.8.8`
+- Verify MTA API is accessible: `curl https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g`
+- Check system logs: `journalctl -u gtrain.service -f`
+
+### Testing Without LCD
+The code can run in test mode on any computer. If the LCD library isn't available (like on macOS), it will print a simulated display to the console instead.
+
+```bash
+# On Mac or any system without the LCD
+python3 display_train.py
+```
+
+## Challenges I Faced
+
+Some challenges I faced were:
+- The contrast of the screen (solved with the potentiometer adjustment)
+- Installing the OS on the SD card (installer issues)
+- Upgrading from an old Raspberry Pi OS
+- WiFi configuration for remote deployment
+- Setting up the service to run on boot
+
+## Good Luck!
+
+If you build this project, I hope this guide helps you avoid some of the pitfalls I encountered. Feel free to adapt it for any NYC subway line!
+
+---
+
+*Made with ❤️ for better train timing awareness*
