@@ -192,3 +192,8 @@ If you build this project, I hope this guide helps you avoid some of the pitfall
 ---
 
 *Made with ❤️ for better train timing awareness*
+
+
+Pushing Updates:
+Mac: scp /Users/calebgates/PycharmProjects/nyc-subway/display_train.py pi@raspberrypi.local:~/nyc-subway/
+Pi:  sudo systemctl restart gtrain-display.service

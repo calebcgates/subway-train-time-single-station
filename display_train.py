@@ -2,7 +2,10 @@
 """
 G Train Display for 16x2 I2C LCD
 Shows next 3 northbound and 3 southbound trains at Greenpoint Avenue
-Alternates display every 1.5 second (4 pages total)
+
+Two display modes:
+- STATIC: All 3 trains per direction on 2 lines (default)
+- DYNAMIC: Cycles through 4 pages showing trains individually
 """
 
 from google.transit import gtfs_realtime_pb2
@@ -23,8 +26,13 @@ except ImportError:
 # Configuration
 MTA_FEED_URL = 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g'
 REFRESH_INTERVAL = 30  # Seconds between data fetches
-DISPLAY_INTERVAL = 1.5   # Seconds to show each page
+DISPLAY_INTERVAL = 1.5   # Seconds to show each page (DYNAMIC mode only)
 LCD_ADDRESS = 0x27     # Default I2C address, change to 0x3f if needed
+
+# Display Mode: 'STATIC' or 'DYNAMIC'
+# STATIC: Shows all 3 trains for both directions on 2 lines (updates every 30s)
+# DYNAMIC: Cycles through 4 pages showing trains individually (updates every 1.5s)
+DISPLAY_MODE = 'STATIC'  # Change to 'DYNAMIC' for cycling display
 
 class TrainDisplay:
     def __init__(self):
@@ -124,7 +132,7 @@ class TrainTracker:
             return False
     
     def format_display_lines(self, direction='north', train_indices=[0, 1]):
-        """Format two lines for the 16x2 display
+        """Format two lines for the 16x2 display (DYNAMIC mode)
         
         Args:
             direction: 'north' or 'south'
@@ -160,15 +168,54 @@ class TrainTracker:
             lines.append(" " * 16)
         
         return lines[0], lines[1]
+    
+    def format_static_display(self):
+        """Format both directions on 2 lines (STATIC mode)
+        
+        Returns two lines showing 3 trains for each direction:
+        Line 1: BRKLYN 05|12|18M
+        Line 2: QUEENS 03|09|15M
+        
+        Format: LABEL MM|MM|MMM (16 chars total)
+        """
+        lines = []
+        
+        for direction in ['south', 'north']:
+            trains = self.southbound_trains if direction == 'south' else self.northbound_trains
+            label = "BRKLYN" if direction == 'south' else "QUEENS"
+            
+            # Get times for up to 3 trains
+            times = []
+            for i in range(3):
+                if i < len(trains):
+                    minutes = trains[i]['minutes']
+                    if minutes < 100:
+                        times.append(f"{minutes:02d}")
+                    else:
+                        times.append("99")
+                else:
+                    times.append("--")
+            
+            # Format: "BRKLYN 05|12|18M" (16 chars)
+            # BRKLYN=6, space=1, times=8 (00|00|00), M=1 = 16 total
+            time_str = f" {times[0]} {times[1]} {times[2]}"
+            line = f"{label} {time_str}"
+            lines.append(line)
+        
+        return lines[0], lines[1]
 
 def main():
     """Main loop"""
     print("=" * 50)
     print("NYC G Train Display - Greenpoint Avenue (G22)")
     print("=" * 50)
+    print(f"Display mode: {DISPLAY_MODE}")
     print(f"Refresh interval: {REFRESH_INTERVAL} seconds")
-    print(f"Display interval: {DISPLAY_INTERVAL} seconds per page")
-    print("Shows 3 trains each direction (4 pages total)")
+    if DISPLAY_MODE == 'DYNAMIC':
+        print(f"Display interval: {DISPLAY_INTERVAL} seconds per page")
+        print("Shows 3 trains each direction (4 pages total)")
+    else:
+        print("Shows all 3 trains per direction on 2 lines")
     print("Press Ctrl+C to exit")
     print("=" * 50)
     
@@ -191,30 +238,39 @@ def main():
                 print(f"\n[{datetime.now().strftime('%H:%M:%S')}] Refreshing data...")
                 if tracker.fetch_trains():
                     last_fetch_time = time.time()
+                    
+                    # In STATIC mode, update display immediately after fetching
+                    if DISPLAY_MODE == 'STATIC':
+                        line1, line2 = tracker.format_static_display()
+                        display.write_lines(line1, line2)
                 else:
                     # On error, wait a bit before retrying
                     time.sleep(5)
                     continue
             
-            # Show northbound trains - page 1 (trains 1 & 2)
-            line1, line2 = tracker.format_display_lines('north', [0, 1])
-            display.write_lines(line1, line2)
-            time.sleep(DISPLAY_INTERVAL)
-            
-            # Show northbound trains - page 2 (train 3)
-            line1, line2 = tracker.format_display_lines('north', [2])
-            display.write_lines(line1, line2)
-            time.sleep(DISPLAY_INTERVAL)
-            
-            # Show southbound trains - page 1 (trains 1 & 2)
-            line1, line2 = tracker.format_display_lines('south', [0, 1])
-            display.write_lines(line1, line2)
-            time.sleep(DISPLAY_INTERVAL)
-            
-            # Show southbound trains - page 2 (train 3)
-            line1, line2 = tracker.format_display_lines('south', [2])
-            display.write_lines(line1, line2)
-            time.sleep(DISPLAY_INTERVAL)
+            if DISPLAY_MODE == 'DYNAMIC':
+                # Show northbound trains - page 1 (trains 1 & 2)
+                line1, line2 = tracker.format_display_lines('north', [0, 1])
+                display.write_lines(line1, line2)
+                time.sleep(DISPLAY_INTERVAL)
+                
+                # Show northbound trains - page 2 (train 3)
+                line1, line2 = tracker.format_display_lines('north', [2])
+                display.write_lines(line1, line2)
+                time.sleep(DISPLAY_INTERVAL)
+                
+                # Show southbound trains - page 1 (trains 1 & 2)
+                line1, line2 = tracker.format_display_lines('south', [0, 1])
+                display.write_lines(line1, line2)
+                time.sleep(DISPLAY_INTERVAL)
+                
+                # Show southbound trains - page 2 (train 3)
+                line1, line2 = tracker.format_display_lines('south', [2])
+                display.write_lines(line1, line2)
+                time.sleep(DISPLAY_INTERVAL)
+            else:
+                # STATIC mode - just sleep and wait for next refresh
+                time.sleep(1)
             
     except KeyboardInterrupt:
         print("\n\nShutting down...")
@@ -225,4 +281,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
