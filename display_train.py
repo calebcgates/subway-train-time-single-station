@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 G Train Display for 16x2 I2C LCD
-Shows next 2 northbound and 2 southbound trains at Greenpoint Avenue
-Alternates display every 4 seconds
+Shows next 3 northbound and 3 southbound trains at Greenpoint Avenue
+Alternates display every 1.5 second (4 pages total)
 """
 
 from google.transit import gtfs_realtime_pb2
@@ -23,7 +23,7 @@ except ImportError:
 # Configuration
 MTA_FEED_URL = 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g'
 REFRESH_INTERVAL = 30  # Seconds between data fetches
-DISPLAY_INTERVAL = 4   # Seconds to show each direction
+DISPLAY_INTERVAL = 1.5   # Seconds to show each page
 LCD_ADDRESS = 0x27     # Default I2C address, change to 0x3f if needed
 
 class TrainDisplay:
@@ -105,12 +105,12 @@ class TrainTracker:
                                 })
                             break  # Only check first stop match per train
             
-            # Sort by arrival time and keep top 2
+            # Sort by arrival time and keep top 3
             northbound.sort(key=lambda x: x['arrival_time'])
             southbound.sort(key=lambda x: x['arrival_time'])
             
-            self.northbound_trains = northbound[:2]
-            self.southbound_trains = southbound[:2]
+            self.northbound_trains = northbound[:3]
+            self.southbound_trains = southbound[:3]
             self.last_update = datetime.now()
             
             print(f"✓ Updated: {len(northbound)} northbound, {len(southbound)} southbound trains found")
@@ -123,15 +123,20 @@ class TrainTracker:
             print(f"✗ Error fetching trains: {e}")
             return False
     
-    def format_display_lines(self, direction='north'):
-        """Format two lines for the 16x2 display"""
+    def format_display_lines(self, direction='north', train_indices=[0, 1]):
+        """Format two lines for the 16x2 display
+        
+        Args:
+            direction: 'north' or 'south'
+            train_indices: List of train indices to display (e.g., [0, 1] or [2])
+        """
         trains = self.northbound_trains if direction == 'north' else self.southbound_trains
         label = "QUEENS" if direction == 'north' else "BROOKLYN"
         
         lines = []
-        for i in range(2):
-            if i < len(trains):
-                minutes = trains[i]['minutes']
+        for idx in train_indices:
+            if idx < len(trains):
+                minutes = trains[idx]['minutes']
                 # Format: "BROOKLYN     1 M" (16 chars total)
                 # Label is left-aligned, time is right-aligned
                 if minutes < 100:
@@ -150,6 +155,10 @@ class TrainTracker:
             
             lines.append(line)
         
+        # If only one train index provided, add blank line
+        if len(train_indices) == 1:
+            lines.append(" " * 16)
+        
         return lines[0], lines[1]
 
 def main():
@@ -158,7 +167,8 @@ def main():
     print("NYC G Train Display - Greenpoint Avenue (G22)")
     print("=" * 50)
     print(f"Refresh interval: {REFRESH_INTERVAL} seconds")
-    print(f"Display interval: {DISPLAY_INTERVAL} seconds")
+    print(f"Display interval: {DISPLAY_INTERVAL} seconds per page")
+    print("Shows 3 trains each direction (4 pages total)")
     print("Press Ctrl+C to exit")
     print("=" * 50)
     
@@ -186,13 +196,23 @@ def main():
                     time.sleep(5)
                     continue
             
-            # Show northbound trains
-            line1, line2 = tracker.format_display_lines('north')
+            # Show northbound trains - page 1 (trains 1 & 2)
+            line1, line2 = tracker.format_display_lines('north', [0, 1])
             display.write_lines(line1, line2)
             time.sleep(DISPLAY_INTERVAL)
             
-            # Show southbound trains
-            line1, line2 = tracker.format_display_lines('south')
+            # Show northbound trains - page 2 (train 3)
+            line1, line2 = tracker.format_display_lines('north', [2])
+            display.write_lines(line1, line2)
+            time.sleep(DISPLAY_INTERVAL)
+            
+            # Show southbound trains - page 1 (trains 1 & 2)
+            line1, line2 = tracker.format_display_lines('south', [0, 1])
+            display.write_lines(line1, line2)
+            time.sleep(DISPLAY_INTERVAL)
+            
+            # Show southbound trains - page 2 (train 3)
+            line1, line2 = tracker.format_display_lines('south', [2])
             display.write_lines(line1, line2)
             time.sleep(DISPLAY_INTERVAL)
             
