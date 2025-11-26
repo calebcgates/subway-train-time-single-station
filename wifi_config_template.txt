@@ -34,3 +34,21 @@ network={
 # - For open networks (no password), use: key_mgmt=NONE instead of psk
 # - For hidden networks, add: scan_ssid=1
 
+
+
+
+# Add the network manually
+sudo nmcli connection add \
+  type wifi \
+  con-name "Jelly Rings" \
+  ifname wlan0 \
+  ssid "Jelly Rings" \
+  wifi-sec.key-mgmt wpa-psk \
+  wifi-sec.psk "XXXXXXXX PASSWORD"
+
+
+  # Set higher priority for your current network (The Internet)
+sudo nmcli connection modify "The Internet" connection.autoconnect-priority 10
+
+# Set priority for Jelly Rings (will connect to this when available)
+sudo nmcli connection modify "Jelly Rings" connection.autoconnect-priority 9
