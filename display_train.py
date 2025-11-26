@@ -173,14 +173,14 @@ class TrainTracker:
         """Format both directions on 2 lines (STATIC mode)
         
         Returns two lines showing 3 trains for each direction:
-        Line 1: BRKLYN 05|12|18M
-        Line 2: QUEENS 03|09|15M
+        Line 1: QUEENS 03|09|15M
+        Line 2: BRKLYN 05|12|18M
         
         Format: LABEL MM|MM|MMM (16 chars total)
         """
         lines = []
         
-        for direction in ['south', 'north']:
+        for direction in ['north', 'south']:
             trains = self.southbound_trains if direction == 'south' else self.northbound_trains
             label = "BRKLYN" if direction == 'south' else "QUEENS"
             
